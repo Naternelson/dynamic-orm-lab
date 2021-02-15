@@ -1,6 +1,136 @@
 require_relative "../config/environment.rb"
 require 'active_support/inflector'
+require 'pry'
 
 class InteractiveRecord
-  
+#   ##
+#   #### CLASS METHODS ####
+#   ##
+
+#   #Returns the name of the table asscoiated with the current class
+#   def self.table_name
+#     self.to_s.downcase.pluralize
+#   end
+
+#   #Returns the column names from the active table
+#   def self.column_names
+#     DB[:conn].results_as_hash = true
+#     sql = "PRAGMA table_info('#{self.table_name}')"
+#     table_info = DB[:conn].execute(sql)
+#     column_names = table_info.collect {|row| row["name"]}.compact
+# end
+
+#   def self.find_by_name(name)
+#         sql = "SELECT * FROM #{self.table_name} WHERE name = #{name}"
+#         DB[:conn].execute(sql)
+#   end
+
+#   def self.find_by(attr)
+
+#   end
+
+# ##
+# #### INSTANCE METHODS ####
+# ##
+
+#     #Initializes the new instance of the active class
+#     def initialize(arguments = {})
+#         arguments.each {|key, value| self.send("#{key}=", value)}
+#     end
+
+#     #returns an array of column names without 'id'
+#     def col_names_without_id
+#         self.class.column_names.delete_if {|col| col == "id"}
+#     end
+
+#     #Returns a string of column names excluding 'id'
+#     def col_names_for_insert
+#         self.col_names_without_id.join(", ")
+#         # self.class.column_names.delete_if {|col| col == "id"}.join(", ")
+#     end
+
+#     #Returns the values for sql insert
+#     def values_for_insert
+#         col_names = self.col_names_without_id
+#         values = col_names.collect {|col_name|"'#{send(col_name)}'"}
+#         values.join(", ")
+
+#     end
+
+#     #Saves the current instance into the DB
+#     def save
+#         sql = "INSERT INTO #{table_name_for_insert} (#{col_names_for_insert}) VALUES (#{values_for_insert})"
+#         DB[:conn].execute(sql)
+#         @id = DB[:conn].execute("SELECT last_insert_rowid() FROM #{table_name_for_insert}")[0][0]
+#     end
+    
+#     #Gets the current instance's table
+#     def table_name_for_insert
+#         self.class.table_name
+#     end
+
+
+    def self.table_name
+        self.to_s.downcase.pluralize
+    end
+
+    def self.column_names
+        DB[:conn].results_as_hash = true
+
+        sql = "pragma table_info ('#{table_name}')"
+
+        table_info = DB[:conn].execute(sql)
+        column_names = []
+        table_info.each do |row|
+        column_names << row["name"]
+        end
+        column_names.compact
+    end
+
+    self.column_names.each do |col_name|
+        attr_accessor col_name.to_sym
+    end
+
+    def initialize(options = {})
+        options.each do |property, value|
+        self.send("#{property}=", value)
+        end
+    end
+
+    def self.find_by(hash)
+        key, value = hash.first
+        # if value.is_a? String
+        #   value = "'#{value}'"
+        # end
+        # binding.pry
+        sql = "SELECT * FROM #{self.table_name} WHERE #{key.to_s} = ?"
+        DB[:conn].execute(sql, value)
+    end
+
+    def self.find_by_name(name)
+        sql = "SELECT * FROM #{self.table_name} WHERE name = '#{name}'"
+        DB[:conn].execute(sql)
+    end
+
+    def table_name_for_insert
+        self.class.table_name
+    end
+
+    def values_for_insert
+        values = []
+        self.class.column_names.each do |col_name|
+        values << "'#{send(col_name)}'" unless send(col_name).nil?
+        end
+        values.join(", ")
+    end
+
+    def col_names_for_insert
+        self.class.column_names.delete_if {|col| col == "id"}.join(", ")
+    end
+
+    def save
+        sql = "INSERT INTO #{table_name_for_insert} (#{col_names_for_insert}) VALUES (#{values_for_insert})"
+        DB[:conn].execute(sql)
+        @id = DB[:conn].execute("SELECT last_insert_rowid() FROM #{table_name_for_insert}")[0][0]
+    end
 end
